@@ -1,0 +1,104 @@
+# GitUp - .gitignore
+# Generated: 2025-07-15
+# Standard: AIDEV-PascalCase-v2.1
+
+# ========================================
+# PYTHON
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ========================================
+# VIRTUAL ENVIRONMENTS
+# ========================================
+.venv/
+venv/
+ENV/
+env/
+
+# ========================================
+# CONFIGURATION & SECRETS
+# ========================================
+.env
+.env.local
+.env.production
+.env.staging
+config/secrets.py
+config/production.py
+*.secret.json
+*.key.json
+*_secret.json
+*_key.json
+
+# ========================================
+# DEVELOPMENT
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================================
+# TESTING & COVERAGE
+# ========================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+
+# ========================================
+# LOGS & TEMPORARY
+# ========================================
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ========================================
+# OS GENERATED
+# ========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ========================================
+# GITGUARD INTEGRATION
+# ========================================
+.gitguard/logs/
+.gitguard/backups/
+.gitguard/cache/
+
+# ========================================
+# GITUP SPECIFIC
+# ========================================
+.gitup/
+templates/cache/
+bootstrap_logs/
