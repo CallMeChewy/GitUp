@@ -3,6 +3,7 @@
 ## Problem Statement
 
 When GitUp encounters existing projects with existing .gitignore files, we face conflicts:
+
 - User's .gitignore may not meet GitGuard security standards
 - GitUp needs to respect user choices while maintaining security
 - False positives occur when legitimate files are flagged as security issues
@@ -10,6 +11,7 @@ When GitUp encounters existing projects with existing .gitignore files, we face 
 ## Solution: The .gitupignore System
 
 ### Core Concept
+
 Create a **parallel ignore system** that works alongside .gitignore:
 
 ```
@@ -25,26 +27,26 @@ flowchart TD
     A[GitUp detects existing .gitignore] --> B[Read existing .gitignore]
     B --> C[Analyze against GitGuard patterns]
     C --> D{Conflicts found?}
-    
+
     D -->|No| E[Create .gitupignore as supplement]
     D -->|Yes| F[Launch Diff Interface]
-    
+
     F --> G[Show side-by-side comparison]
     G --> H[User makes decisions]
     H --> I[Generate .gitupignore + metadata]
-    
+
     E --> J[GitUp uses combined ignore logic]
     I --> J
-    
+
     J --> K[Ongoing security scanning]
     K --> L{New issues found?}
     L -->|Yes| M[Check .gitupignore.meta for user decisions]
     L -->|No| N[Continue normal operation]
-    
+
     M --> O{Previously approved?}
     O -->|Yes| P[Skip flagging]
     O -->|No| Q[Flag as new issue]
-    
+
     P --> N
     Q --> R[User decision required]
     R --> S[Update .gitupignore.meta]
@@ -152,6 +154,7 @@ flowchart TD
 ## Implementation Strategy
 
 ### Phase 1: Core .gitupignore System
+
 ```python
 class GitUpIgnoreManager:
     def __init__(self, project_path):
@@ -159,83 +162,88 @@ class GitUpIgnoreManager:
         self.gitignore_path = project_path / '.gitignore'
         self.gitupignore_path = project_path / '.gitupignore'
         self.metadata_path = project_path / '.gitupignore.meta'
-    
+
     def analyze_existing_gitignore(self):
         """Analyze existing .gitignore for security gaps"""
         pass
-    
+
     def create_diff_interface(self):
         """Launch interactive diff interface"""
         pass
-    
+
     def generate_gitupignore(self, user_decisions):
         """Generate .gitupignore based on user decisions"""
         pass
-    
+
     def should_ignore_file(self, file_path):
         """Check if file should be ignored (combines .gitignore + .gitupignore)"""
         pass
 ```
 
 ### Phase 2: Interactive Diff Interface
+
 ```python
 class GitUpDiffInterface:
     def __init__(self, existing_gitignore, suggested_patterns):
         self.existing = existing_gitignore
         self.suggested = suggested_patterns
-    
+
     def show_side_by_side(self):
         """Display side-by-side comparison"""
         pass
-    
+
     def review_individual_items(self):
         """Let user review each conflict individually"""
         pass
-    
+
     def generate_final_config(self):
         """Generate final .gitupignore + metadata"""
         pass
 ```
 
 ### Phase 3: GitGuard Integration
+
 ```python
 # Modified GitGuard integration
 class GitGuardValidator:
     def __init__(self, project_path):
         self.ignore_manager = GitUpIgnoreManager(project_path)
-    
+
     def should_scan_file(self, file_path):
         """Check both .gitignore and .gitupignore + user decisions"""
         # Check .gitignore
         if self.is_git_ignored(file_path):
             return False
-        
+
         # Check .gitupignore
         if self.ignore_manager.should_ignore_file(file_path):
             return False
-        
+
         # Check user decisions
         if self.ignore_manager.is_user_approved(file_path):
             return False
-        
+
         return True
 ```
 
 ## Benefits of This Approach
 
 ### For Users
+
 - **Non-destructive**: Original .gitignore remains unchanged
 - **Granular control**: Review each security decision
 - **Learning opportunity**: Understand security implications
 - **Audit trail**: Track decisions over time
 
 ### For GitUp
+
 - **Flexible**: Works with any existing .gitignore
 - **Secure**: Maintains security standards
 - **Scalable**: Easy to add new security patterns
 - **Maintainable**: Clear separation of concerns
 
 ### For Teams
+
 - **Collaborative**: Teams can share .gitupignore patterns
 - **Consistent**: Same security standards across projects
 - **Transparent**: Clear audit trail of security decisions
@@ -283,4 +291,4 @@ You mentioned a GUI interface might be needed - I think you're right! The diff i
 4. **Add user decision tracking**
 5. **Test with real projects**
 
-This approach solves the core problem while maintaining flexibility and user control. What do you think about this direction?
+This approach solves the core problem while maintaining flexibility and user control. What do you think about this direction

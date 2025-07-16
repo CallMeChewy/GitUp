@@ -23,6 +23,7 @@ gitup templates
 ```
 
 Output:
+
 ```
 ┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┓
 ┃ Template    ┃ Description                           ┃ Language   ┃ Security ┃
@@ -75,6 +76,7 @@ gitup bootstrap PROJECT_NAME [OPTIONS]
 ```
 
 **Options:**
+
 - `--template, -t`: Project template (default: auto)
 - `--path, -p`: Parent directory (default: current)
 - `--security, -s`: Security level (low/medium/high)
@@ -129,16 +131,19 @@ my-project/
 GitUp integrates GitGuard security from day one:
 
 ### Pre-commit Hooks
+
 - Automatic security scanning before each commit
 - Blocks commits with critical security issues
 - Provides remediation suggestions
 
 ### Smart .gitignore
+
 - Context-aware file exclusions
 - Prevents accidental credential commits
 - Template-specific security patterns
 
 ### Security Levels
+
 - **Low**: Basic security, minimal restrictions
 - **Medium**: Balanced security and usability
 - **High**: Maximum security, strict validation
@@ -195,12 +200,14 @@ python src/main.py
 ### Common Issues
 
 **Git not configured:**
+
 ```bash
 git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
 ```
 
 **Virtual environment issues:**
+
 ```bash
 # Recreate virtual environment
 rm -rf .venv
@@ -210,6 +217,7 @@ pip install -r requirements.txt
 ```
 
 **GitGuard errors:**
+
 ```bash
 # Check security status
 gitguard status
