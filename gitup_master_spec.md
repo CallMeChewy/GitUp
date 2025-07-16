@@ -46,10 +46,16 @@ GitUp is a comprehensive git workflow enhancement system designed to introduce s
 ```
 GitUp Core
 ├── ProjectStateDetector    # Analyzes project state and setup needs
+├── RiskMitigationSystem   # Security risk detection and enforcement
+│   ├── SecurityRiskDetector      # Identifies security vulnerabilities
+│   ├── SecurityEnforcer          # Blocks operations on violations
+│   ├── SecurityInterface         # Risk review and user decisions
+│   └── TerminalInterface         # CRT/TV955 terminal experience
 ├── ComplianceEnforcer     # Aggressive compliance checking
 ├── StateManager          # Tracks GitUp vs vanilla git usage
 ├── ConfigurationManager  # Handles security levels and settings
 ├── AuditLogger          # Comprehensive audit trail
+├── IgnoreManager        # .gitupignore and .gitignore integration
 └── UserInterface        # Multi-level interface system
 ```
 

@@ -26,6 +26,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .templates import TemplateManager
 from .gitguard_integration import GitGuardIntegration
+from .project_state_detector import ProjectStateDetector
 from ..utils.exceptions import BootstrapError, VirtualEnvironmentError, GitRepositoryError
 
 console = Console()
@@ -52,6 +53,7 @@ class ProjectBootstrap:
         # Components
         self.template_manager = TemplateManager()
         self.gitguard_integration = GitGuardIntegration()
+        self.state_detector = ProjectStateDetector(str(self.parent_path), verbose=verbose)
         
         # State tracking
         self.bootstrap_state = {
@@ -62,6 +64,9 @@ class ProjectBootstrap:
             'gitguard_configured': False,
             'initial_commit_made': False
         }
+        
+        # Project analysis (will be populated during bootstrap)
+        self.project_analysis = None
     
     def run(self) -> Dict[str, Any]:
         """Main bootstrap process"""
@@ -81,44 +86,49 @@ class ProjectBootstrap:
                 self._validate_setup()
                 progress.update(task, description="✅ Setup validated")
                 
-                # Step 2: Create project directory
+                # Step 2: Analyze parent directory context
+                task = progress.add_task("🔍 Analyzing project context...", total=None)
+                self.project_analysis = self._analyze_project_context()
+                progress.update(task, description="✅ Project context analyzed")
+                
+                # Step 3: Create project directory
                 task = progress.add_task("📁 Creating project directory...", total=None)
                 self._create_project_directory()
                 progress.update(task, description="✅ Project directory created")
                 
-                # Step 3: Process template
+                # Step 4: Process template (now informed by analysis)
                 task = progress.add_task("📋 Processing template...", total=None)
                 template_info = self._process_template()
                 progress.update(task, description=f"✅ Template '{template_info['name']}' processed")
                 
-                # Step 4: Initialize git repository
+                # Step 5: Initialize git repository
                 task = progress.add_task("🔧 Initializing git repository...", total=None)
                 self._setup_git_repository()
                 progress.update(task, description="✅ Git repository initialized")
                 
-                # Step 5: Set up virtual environment
+                # Step 6: Set up virtual environment (if recommended)
                 if self.setup_venv and 'python' in template_info.get('languages', []):
                     task = progress.add_task("🐍 Setting up virtual environment...", total=None)
                     self._setup_virtual_environment()
                     progress.update(task, description="✅ Virtual environment created")
                 
-                # Step 6: Create project files
+                # Step 7: Create project files
                 task = progress.add_task("📝 Creating project files...", total=None)
                 self._create_project_files(template_info)
                 progress.update(task, description="✅ Project files created")
                 
-                # Step 7: Install dependencies
+                # Step 8: Install dependencies
                 task = progress.add_task("📦 Installing dependencies...", total=None)
                 self._install_dependencies(template_info)
                 progress.update(task, description="✅ Dependencies installed")
                 
-                # Step 8: Set up GitGuard
+                # Step 9: Set up GitGuard (with intelligent security level)
                 if self.setup_gitguard:
                     task = progress.add_task("🛡️ Setting up GitGuard...", total=None)
                     self._setup_gitguard_integration(template_info)
                     progress.update(task, description="✅ GitGuard configured")
                 
-                # Step 9: Initial commit
+                # Step 10: Initial commit
                 task = progress.add_task("📝 Creating initial commit...", total=None)
                 self._create_initial_commit()
                 progress.update(task, description="✅ Initial commit created")
@@ -130,7 +140,13 @@ class ProjectBootstrap:
                 'template': template_info['name'],
                 'venv_created': self.bootstrap_state['venv_created'],
                 'gitguard_enabled': self.bootstrap_state['gitguard_configured'],
-                'security_level': self.security_level
+                'security_level': self.security_level,
+                'context_analysis': {
+                    'parent_state': self.project_analysis.state.value if self.project_analysis else 'unknown',
+                    'parent_risk_level': self.project_analysis.risk_level.value if self.project_analysis else 'unknown',
+                    'setup_complexity': self.project_analysis.setup_complexity.value if self.project_analysis else 'unknown',
+                    'analysis_duration_ms': self.project_analysis.analysis_duration_ms if self.project_analysis else 0
+                }
             }
             
         except Exception as e:
@@ -139,6 +155,28 @@ class ProjectBootstrap:
                 import traceback
                 traceback.print_exc()
             raise BootstrapError(f"Project bootstrap failed: {e}")
+    
+    def _analyze_project_context(self):
+        """Analyze the parent directory context to inform setup decisions"""
+        if self.verbose:
+            console.print(f"🔍 Analyzing context in: {self.parent_path}")
+        
+        # Analyze parent directory to understand the context
+        analysis = self.state_detector.analyze_project()
+        
+        # Adjust security level based on context analysis if not explicitly set
+        if self.security_level == 'medium':  # Default value
+            self.security_level = analysis.recommended_security_level
+            if self.verbose:
+                console.print(f"📊 Adjusted security level to: {self.security_level}")
+        
+        # Show context warnings if any
+        if analysis.setup_warnings and self.verbose:
+            console.print("⚠️  Context Analysis Warnings:")
+            for warning in analysis.setup_warnings:
+                console.print(f"   {warning}")
+        
+        return analysis
     
     def _validate_setup(self):
         """Validate bootstrap setup"""
@@ -184,10 +222,17 @@ class ProjectBootstrap:
             console.print(f"📁 Created project directory: {self.project_path}")
     
     def _process_template(self) -> Dict[str, Any]:
-        """Process and prepare template"""
+        """Process and prepare template (now informed by project analysis)"""
         if self.template == 'auto':
-            # Auto-detect template based on context
-            template_info = self.template_manager.detect_template()
+            # Use intelligent template detection from project analysis
+            if self.project_analysis and self.project_analysis.recommended_templates:
+                template_name = self.project_analysis.recommended_templates[0]
+                template_info = self.template_manager.get_template_info(template_name)
+                if self.verbose:
+                    console.print(f"📊 Auto-detected template: {template_name}")
+            else:
+                # Fallback to existing detection
+                template_info = self.template_manager.detect_template()
         else:
             template_info = self.template_manager.get_template_info(self.template)
         

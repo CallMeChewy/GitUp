@@ -35,3 +35,10 @@ class VirtualEnvironmentError(GitUpError):
 class GitRepositoryError(GitUpError):
     """Exception raised for git repository operations"""
     pass
+
+class SecurityViolationError(GitUpError):
+    """Exception raised when security violations block operations"""
+    
+    def __init__(self, message: str, violations: list = None):
+        super().__init__(message)
+        self.violations = violations or []
