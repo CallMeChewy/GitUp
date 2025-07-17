@@ -1,0 +1,58 @@
+Generating simplified gitignore-aware tree view using pathspec...
+. (CSM)
+├── .claude
+├── .git
+├── .venv
+├── Docs
+│   ├── Daily
+│   │   └── 2025-07-10
+│   ├── Development
+│   │   └── Some gitignore Rules.txt
+│   ├── Guides
+│   ├── Misc
+│   ├── Standards
+│   │   ├── Design Standard v1.8.md
+│   │   ├── Design Standard v1.8a.md
+│   │   ├── Design Standard v1.9.md
+│   │   ├── Design Standard v2.0.md
+│   │   └── Design Standard v2.1.md
+│   └── Updates
+├── Scripts
+│   ├── CurrentApp
+│   │   └── WebAppDiagnostic.py
+│   ├── DataBase
+│   │   ├── SQLiteToMySQL_DataDump.py
+│   │   ├── SQLiteToMySQL_GenericPort.py
+│   │   └── SQLiteToMySQL_GenericPort_Hardened.py
+│   ├── Deployment
+│   │   └── UpdateFiles.py
+│   ├── Development
+│   ├── FinderDisplay
+│   │   ├── AdvancedFileSearcher.py
+│   │   ├── FindText.py
+│   │   ├── FindTextTwo.py
+│   │   ├── ListFilesByDate.py
+│   │   ├── ListNewPy.py
+│   │   ├── NewPyDump.py
+│   │   └── SimpleTree.py
+│   ├── GitHub
+│   │   ├── BackToTheFuture.sh
+│   │   ├── GitHubAutoUpdate.py
+│   │   ├── GitHubInitialCommit.py
+│   │   ├── GitHubTimeMachine.py
+│   │   ├── GitHubUpdateSite.py
+│   │   └── TimeTraveiGitHub.py
+│   ├── System
+│   │   ├── BackupProject.py
+│   │   ├── BackupTemp.py
+│   │   └── CodebaseSum.py
+│   └── Tools
+│       ├── ChangeBrowser.sh
+│       ├── GPU OCR Speed Test.py
+│       ├── MarkdownToText.py
+│       └── VerifyIgnore.py
+├── Updates
+├── .gitignore
+├── CSM_Tree.txt
+├── Claude Monitor Scope.md
+└── Claude_Monitor.txt
