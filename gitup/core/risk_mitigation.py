@@ -392,6 +392,12 @@ class SecurityRiskDetector:
         risks = []
         
         try:
+            # CRITICAL: Check if this is a symbolic link first
+            if file_path.is_symlink():
+                # For symbolic links, git only commits the link itself, not the target content
+                # So we only need to check if the symlink NAME/PATH itself is problematic
+                return self._scan_symbolic_link(file_path)
+            
             # Get file info
             stat = file_path.stat()
             file_size = stat.st_size
@@ -467,6 +473,107 @@ class SecurityRiskDetector:
         
         except Exception:
             pass  # Skip files that can't be read
+        
+        return risks
+    
+    def _scan_symbolic_link(self, file_path: Path) -> List[SecurityRisk]:
+        """
+        Scan symbolic link for security risks.
+        
+        For symbolic links, git only commits the link itself (the pointer), not the 
+        target content. Therefore, we only need to check if the symlink path/name 
+        itself is problematic, not the content it points to.
+        
+        This prevents false positives where symlinks point to sensitive files but
+        the actual git commit only contains the safe symlink pointer.
+        """
+        risks = []
+        
+        try:
+            # Get symlink metadata (without following the link)
+            stat = file_path.lstat()  # lstat() gets symlink metadata, not target
+            file_size = stat.st_size  # Size of the symlink itself, not target
+            last_modified = datetime.fromtimestamp(stat.st_mtime).isoformat()
+            
+            # Handle both absolute and relative paths
+            try:
+                relative_path = str(file_path.relative_to(self.project_path))
+            except ValueError:
+                # If relative_to fails, use the file name or absolute path
+                if file_path.is_absolute():
+                    relative_path = str(file_path)
+                else:
+                    relative_path = str(file_path)
+            
+            # Check if symlink is tracked by git
+            is_tracked = self._is_git_tracked(file_path)
+            
+            # Read the symlink target (what it points to)
+            try:
+                symlink_target = os.readlink(file_path)
+            except Exception:
+                symlink_target = "unknown"
+            
+            # Only check the symlink PATH/NAME patterns, not content
+            # This catches things like symlinks named "secrets.txt" or ".env_link"
+            for risk_type, patterns in self.risk_patterns.items():
+                for pattern in patterns:
+                    if fnmatch.fnmatch(relative_path, pattern):
+                        # Create risk for the symlink path itself
+                        risk = self._create_risk(
+                            file_path=relative_path,
+                            risk_type=risk_type,
+                            pattern_matched=f"symlink_path:{pattern}",
+                            file_size=file_size,
+                            last_modified=last_modified,
+                            is_tracked=is_tracked
+                        )
+                        # Add symlink-specific information
+                        risk.description = f"Symbolic link with suspicious name: {relative_path} -> {symlink_target}"
+                        risk.recommendation = f"Rename symlink to non-sensitive name or add to .gitignore"
+                        risks.append(risk)
+                        break  # Only match first pattern per type
+            
+            # Check if symlink target path itself looks suspicious
+            # This catches symlinks pointing to obviously sensitive locations
+            suspicious_targets = [
+                '*.env*', '*.secret*', '*.key*', '*.credential*', 
+                '*password*', '*config/secret*', '*private*'
+            ]
+            
+            for pattern in suspicious_targets:
+                if fnmatch.fnmatch(symlink_target.lower(), pattern):
+                    risk = self._create_risk(
+                        file_path=relative_path,
+                        risk_type=SecurityRiskType.SECRET_FILE,
+                        pattern_matched=f"symlink_target:{pattern}",
+                        file_size=file_size,
+                        last_modified=last_modified,
+                        is_tracked=is_tracked
+                    )
+                    risk.description = f"Symbolic link points to suspicious location: {relative_path} -> {symlink_target}"
+                    risk.recommendation = f"Review symlink target for sensitivity. Consider .gitignore if appropriate."
+                    risks.append(risk)
+                    break
+                    
+        except Exception as e:
+            # If we can't analyze the symlink properly, create a warning
+            try:
+                relative_path = str(file_path.relative_to(self.project_path))
+            except ValueError:
+                relative_path = str(file_path)
+                
+            risk = self._create_risk(
+                file_path=relative_path,
+                risk_type=SecurityRiskType.SYSTEM_FILE,
+                pattern_matched="symlink_analysis_failed",
+                file_size=0,
+                last_modified=datetime.now().isoformat(),
+                is_tracked=False
+            )
+            risk.description = f"Could not analyze symbolic link: {file_path}"
+            risk.recommendation = "Manually verify symlink safety"
+            risks.append(risk)
         
         return risks
     
