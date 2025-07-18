@@ -1,3 +1,5 @@
+![Project Himalaya Banner](./Project_Himalaya_Banner.png)
+
 # GitUp - Enhanced Project Bootstrap Tool
 
 **GitUp** is an enhanced project setup tool that builds on GitGuard's security foundation to provide a comprehensive project bootstrap experience.

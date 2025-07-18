@@ -1,0 +1,25 @@
+{
+  "version": "2.1.0-tv955-fusion",
+  "author": "Herbert J. Bowers & Claude (Anthropic)",
+  "description": "GitUp TV955 Fusion - Secure Project Creation with CRT Experience",
+  "build_date": "2025-07-18T08:17:22.631547",
+  "build_platform": "linux-x86_64",
+  "files": {
+    "binary": "gitup-linux",
+    "installer": "install-linux.sh",
+    "checksum": "sha256.txt"
+  },
+  "system_requirements": {
+    "os": "linux",
+    "arch": "x86_64",
+    "min_version": "Ubuntu 18.04+ / CentOS 7+ / Similar"
+  },
+  "features": [
+    "Multi-level interface system (Hardcore/Standard/Newbie)",
+    "TV955 terminal integration",
+    "Template-based secure project creation",
+    "Real-time security risk detection",
+    "Smart .gitignore management",
+    "Authentic CRT terminal experience"
+  ]
+}

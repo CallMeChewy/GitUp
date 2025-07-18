@@ -1,0 +1,14 @@
+Collecting pyinstaller
+  Using cached pyinstaller-6.14.2-py3-none-manylinux2014_x86_64.whl.metadata (8.3 kB)
+Requirement already satisfied: setuptools>=42.0.0 in /home/herb/.pyenv/versions/3.11.9/lib/python3.11/site-packages (from pyinstaller) (65.5.0)
+Collecting altgraph (from pyinstaller)
+  Using cached altgraph-0.17.4-py2.py3-none-any.whl.metadata (7.3 kB)
+Collecting pyinstaller-hooks-contrib>=2025.5 (from pyinstaller)
+  Downloading pyinstaller_hooks_contrib-2025.6-py3-none-any.whl.metadata (16 kB)
+Requirement already satisfied: packaging>=22.0 in /home/herb/.pyenv/versions/3.11.9/lib/python3.11/site-packages (from pyinstaller) (25.0)
+Using cached pyinstaller-6.14.2-py3-none-manylinux2014_x86_64.whl (725 kB)
+Downloading pyinstaller_hooks_contrib-2025.6-py3-none-any.whl (440 kB)
+Using cached altgraph-0.17.4-py2.py3-none-any.whl (21 kB)
+Installing collected packages: altgraph, pyinstaller-hooks-contrib, pyinstaller
+
+Successfully installed altgraph-0.17.4 pyinstaller-6.14.2 pyinstaller-hooks-contrib-2025.6

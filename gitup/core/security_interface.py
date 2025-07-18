@@ -40,6 +40,7 @@ from .risk_mitigation import (
     SecurityRisk, SecurityRiskType, SecurityRiskLevel, UserDecision
 )
 from .gitup_project_manager import GitUpProjectManager
+from .interface_modes import interface_manager, InterfaceMode
 from ..utils.exceptions import GitUpError, SecurityViolationError
 
 
@@ -63,6 +64,7 @@ class SecurityReviewInterface:
         self.project_path = Path(project_path)
         self.security_level = security_level
         self.console = Console()
+        self.interface = interface_manager  # Use adaptive interface
         self.detector = SecurityRiskDetector(str(project_path), security_level)
         self.enforcer = SecurityEnforcer(str(project_path), security_level)
         self.project_manager = GitUpProjectManager(str(project_path))
@@ -81,13 +83,26 @@ class SecurityReviewInterface:
         Returns:
             Dictionary with review results and user decisions
         """
-        self.console.print(Panel.fit(
-            "🔒 GitUp Security Review",
-            style="blue bold"
-        ))
+        # Mode-aware header
+        if self.interface.mode == InterfaceMode.HARDCORE:
+            print("GitUp Security Review")
+        elif self.interface.mode == InterfaceMode.NEWBIE:
+            self.console.print(Panel.fit(
+                "🔒 GitUp Security Review - Learning Mode",
+                style="blue bold"
+            ))
+        else:  # STANDARD
+            self.console.print(Panel.fit(
+                "🔒 GitUp Security Review",
+                style="blue bold"
+            ))
         
-        # Scan for risks
-        self.console.print("🔍 Scanning project for security risks...")
+        # Scan for risks with mode-appropriate messaging
+        if self.interface.mode == InterfaceMode.HARDCORE:
+            print("Scanning...")
+        else:
+            self.console.print("🔍 Scanning project for security risks...")
+            
         assessment = self.detector.scan_project()
         
         # Show assessment summary
@@ -113,9 +128,44 @@ class SecurityReviewInterface:
                 return {"status": "warnings_only", "total_risks": assessment.total_risks}
     
     def _display_assessment_summary(self, assessment: SecurityAssessment) -> None:
-        """Display security assessment summary"""
+        """Display security assessment summary with adaptive interface"""
         
-        # Create summary table
+        # Use adaptive interface for assessment display
+        assessment_data = {
+            'total_risks': assessment.total_risks,
+            'critical_risks': assessment.critical_risks,
+            'high_risks': assessment.high_risks,
+            'medium_risks': assessment.medium_risks,
+            'low_risks': assessment.low_risks,
+            'blocking_violations': len(assessment.blocking_violations)
+        }
+        
+        self.interface.print_security_assessment(assessment_data)
+        
+        # Show enforcement status if violations exist
+        if assessment.blocking_violations:
+            if self.interface.mode == InterfaceMode.HARDCORE:
+                print(f"BLOCKING: {len(assessment.blocking_violations)} violations")
+            elif self.interface.mode == InterfaceMode.NEWBIE:
+                self.interface.print_message(
+                    "⚠️ Security violations detected!",
+                    "red",
+                    "These are security issues that GitUp won't let you commit until they're resolved. This protects you from accidentally exposing sensitive information."
+                )
+            else:  # STANDARD
+                self.console.print(Panel(
+                    f"⚠️ Security violations detected!\n\n"
+                    f"GitUp operations will be blocked until {len(assessment.blocking_violations)} security violations are resolved.\n\n"
+                    f"Current security level: {self.security_level}",
+                    title="Security Enforcement Active",
+                    style="red"
+                ))
+        
+        # Skip the old table display for hardcore mode
+        if self.interface.mode == InterfaceMode.HARDCORE:
+            return
+            
+        # Original table code for fallback (standard/newbie modes)
         summary_table = Table(title="Security Assessment Summary")
         summary_table.add_column("Risk Level", style="cyan")
         summary_table.add_column("Count", justify="right")
@@ -236,47 +286,198 @@ class SecurityReviewInterface:
         ))
     
     def _get_user_decision(self, risk: SecurityRisk) -> Optional[UserDecision]:
-        """Get user decision for a security risk"""
+        """Get user decision for a security risk with adaptive interface"""
         
-        # Show available options
-        options = [
-            ("1", "Add to .gitignore", UserDecision.ADD_TO_GITIGNORE),
-            ("2", "Add to .gitupignore", UserDecision.ADD_TO_GITUPIGNORE),
-            ("3", "Ignore permanently", UserDecision.IGNORE_PERMANENTLY),
-            ("4", "Ignore temporarily", UserDecision.IGNORE_TEMPORARILY),
-            ("5", "Remove file", UserDecision.REMOVE_FILE),
-            ("6", "Review later", UserDecision.REVIEW_LATER),
-            ("s", "Skip this risk", None)
-        ]
+        # Mode-specific options and explanations
+        if self.interface.mode == InterfaceMode.HARDCORE:
+            # Minimal options for hardcore mode
+            options = ["1", "2", "3", "5", "s"]
+            choices = ["1", "2", "3", "5", "s"]
+            
+            while True:
+                choice = input(f"Action for {risk.file_path} (1=.gitignore/2=.gitupignore/3=ignore/5=remove/s=skip): ").strip()
+                
+                if choice == "1":
+                    return UserDecision.ADD_TO_GITIGNORE
+                elif choice == "2":
+                    return UserDecision.ADD_TO_GITUPIGNORE
+                elif choice == "3":
+                    return UserDecision.IGNORE_PERMANENTLY
+                elif choice == "5":
+                    return UserDecision.REMOVE_FILE
+                elif choice == "s":
+                    return None
+                else:
+                    continue
         
-        self.console.print("\n[bold]Available Actions:[/bold]")
-        for key, description, _ in options:
-            self.console.print(f"  {key}. {description}")
-        
-        while True:
-            choice = Prompt.ask(
-                "\nWhat would you like to do with this risk?",
-                choices=[opt[0] for opt in options],
-                default="s"
+        elif self.interface.mode == InterfaceMode.NEWBIE:
+            # Educational mode with detailed explanations
+            explanations = {
+                "1": "Add to .gitignore - Standard git way to ignore files (recommended for most cases)",
+                "2": "Add to .gitupignore - GitUp's enhanced ignore system with metadata tracking",
+                "3": "Ignore permanently - Tell GitUp to never warn about this file again",
+                "4": "Ignore temporarily - Skip this file for now, but check it again later",
+                "5": "Remove file - Delete the file from your project (careful!)",
+                "6": "Review later - Skip for now and decide later",
+                "p": "Preview file content - See what's inside the file before deciding",
+                "s": "Skip this risk - Move to the next security issue"
+            }
+            
+            choices = ["1", "2", "3", "4", "5", "6", "p", "s"]
+            
+            self.interface.print_message(
+                f"🔍 Security Risk Found: {risk.file_path}",
+                "yellow",
+                f"This file contains {risk.risk_type.value} and has {risk.risk_level.value} risk level."
             )
             
-            # Find selected option
-            for key, description, decision in options:
-                if key == choice:
-                    if decision is None:
-                        return None  # Skip
+            while True:
+                choice = self.interface.get_user_choice(
+                    "What would you like to do with this security risk?",
+                    choices,
+                    default="s",
+                    explanations=explanations
+                )
+                
+                if choice == "p":
+                    self._preview_risk_content(risk)
+                    continue
+                
+                # Convert choice to decision
+                decision_map = {
+                    "1": UserDecision.ADD_TO_GITIGNORE,
+                    "2": UserDecision.ADD_TO_GITUPIGNORE,
+                    "3": UserDecision.IGNORE_PERMANENTLY,
+                    "4": UserDecision.IGNORE_TEMPORARILY,
+                    "5": UserDecision.REMOVE_FILE,
+                    "6": UserDecision.REVIEW_LATER,
+                    "s": None
+                }
+                
+                decision = decision_map.get(choice)
+                if decision is None:
+                    return None
+                
+                # Educational confirmations
+                if decision == UserDecision.REMOVE_FILE:
+                    if not self.interface.confirm_action(
+                        f"Are you sure you want to delete '{risk.file_path}'?",
+                        False,
+                        "This will permanently remove the file from your computer. Make sure you have a backup if you need it!"
+                    ):
+                        continue
+                
+                # Show what the action will do
+                if decision in [UserDecision.ADD_TO_GITIGNORE, UserDecision.ADD_TO_GITUPIGNORE]:
+                    pattern = self._generate_smart_pattern(risk.file_path)
+                    target_file = ".gitignore" if decision == UserDecision.ADD_TO_GITIGNORE else ".gitupignore"
+                    self.interface.print_message(
+                        f"📋 This will add pattern '{pattern}' to {target_file}",
+                        "blue",
+                        f"This pattern will ignore not just this file, but similar files in the future."
+                    )
                     
-                    # Confirm critical actions
-                    if decision == UserDecision.REMOVE_FILE:
-                        if not Confirm.ask(f"⚠️  Are you sure you want to remove '{risk.file_path}'?"):
-                            continue
-                    
-                    # Get optional reason
-                    reason = None
-                    if decision in [UserDecision.IGNORE_PERMANENTLY, UserDecision.IGNORE_TEMPORARILY]:
-                        reason = Prompt.ask("Optional reason for ignoring", default="")
-                    
-                    return decision
+                    if not self.interface.confirm_action("Proceed with this action?"):
+                        continue
+                
+                return decision
+        
+        else:  # STANDARD mode
+            # Balanced interface
+            options = [
+                ("1", "Add to .gitignore", UserDecision.ADD_TO_GITIGNORE),
+                ("2", "Add to .gitupignore", UserDecision.ADD_TO_GITUPIGNORE),
+                ("3", "Ignore permanently", UserDecision.IGNORE_PERMANENTLY),
+                ("4", "Ignore temporarily", UserDecision.IGNORE_TEMPORARILY),
+                ("5", "Remove file", UserDecision.REMOVE_FILE),
+                ("6", "Review later", UserDecision.REVIEW_LATER),
+                ("p", "Preview file content", None),
+                ("s", "Skip this risk", None)
+            ]
+            
+            self.console.print("\n[bold]Available Actions:[/bold]")
+            for key, description, _ in options:
+                self.console.print(f"  {key}. {description}")
+            
+            while True:
+                choice = Prompt.ask(
+                    "\nWhat would you like to do with this risk?",
+                    choices=[opt[0] for opt in options],
+                    default="s"
+                )
+                
+                # Handle preview mode
+                if choice == "p":
+                    self._preview_risk_content(risk)
+                    continue
+                
+                # Find selected option
+                for key, description, decision in options:
+                    if key == choice:
+                        if decision is None:
+                            return None  # Skip
+                        
+                        # Show preview of what the action will do
+                        if decision in [UserDecision.ADD_TO_GITIGNORE, UserDecision.ADD_TO_GITUPIGNORE]:
+                            pattern = self._generate_smart_pattern(risk.file_path)
+                            target_file = ".gitignore" if decision == UserDecision.ADD_TO_GITIGNORE else ".gitupignore"
+                            self.console.print(f"📋 Preview: Will add pattern '{pattern}' to {target_file}")
+                            
+                            if not Confirm.ask("Proceed with this action?"):
+                                continue
+                        
+                        # Confirm critical actions
+                        if decision == UserDecision.REMOVE_FILE:
+                            if not Confirm.ask(f"⚠️  Are you sure you want to remove '{risk.file_path}'?"):
+                                continue
+                        
+                        # Get optional reason
+                        reason = None
+                        if decision in [UserDecision.IGNORE_PERMANENTLY, UserDecision.IGNORE_TEMPORARILY]:
+                            reason = Prompt.ask("Optional reason for ignoring", default="")
+                        
+                        return decision
+    
+    def _preview_risk_content(self, risk: SecurityRisk) -> None:
+        """Preview file content around the security risk"""
+        try:
+            file_path = Path(risk.file_path)
+            
+            # Handle symbolic links
+            if file_path.is_symlink():
+                import os
+                target = os.readlink(file_path)
+                self.console.print(f"🔗 Symbolic link: {risk.file_path} -> {target}")
+                return
+            
+            # Read file content
+            if file_path.exists():
+                content = file_path.read_text(encoding='utf-8', errors='ignore')
+                lines = content.split('\n')
+                
+                # Show first 10 lines or full content if smaller
+                preview_lines = lines[:10]
+                
+                self.console.print(f"\n📄 File preview: {risk.file_path}")
+                self.console.print("─" * 50)
+                
+                for i, line in enumerate(preview_lines, 1):
+                    # Highlight potential sensitive content
+                    if any(word in line.lower() for word in ['password', 'secret', 'key', 'token']):
+                        self.console.print(f"{i:2d}: [red]{line}[/red]")
+                    else:
+                        self.console.print(f"{i:2d}: {line}")
+                
+                if len(lines) > 10:
+                    self.console.print(f"... ({len(lines) - 10} more lines)")
+                
+                self.console.print("─" * 50)
+                
+            else:
+                self.console.print(f"❌ File not found: {risk.file_path}")
+                
+        except Exception as e:
+            self.console.print(f"❌ Error reading file: {e}")
     
     def _apply_decision(self, risk: SecurityRisk, decision: UserDecision) -> None:
         """Apply user decision to a security risk"""
@@ -307,14 +508,11 @@ class SecurityReviewInterface:
             self.console.print(f"❌ Error applying decision: {e}")
     
     def _add_to_gitignore(self, file_path: str) -> None:
-        """Add file pattern to .gitignore"""
+        """Add file pattern to .gitignore with smart pattern generation"""
         gitignore_path = self.project_path / ".gitignore"
         
-        # Create pattern (add wildcard for extensions)
-        if file_path.endswith(('.key', '.pem', '.env')):
-            pattern = f"*{Path(file_path).suffix}"
-        else:
-            pattern = file_path
+        # Smart pattern generation based on file type and content
+        pattern = self._generate_smart_pattern(file_path)
         
         # Read existing content
         existing_content = ""
@@ -325,6 +523,43 @@ class SecurityReviewInterface:
         if pattern not in existing_content:
             with open(gitignore_path, 'a') as f:
                 f.write(f"\n# Added by GitUp security review\n{pattern}\n")
+                
+        self.console.print(f"✅ Added pattern '{pattern}' to .gitignore")
+    
+    def _generate_smart_pattern(self, file_path: str) -> str:
+        """Generate intelligent ignore patterns based on file type and risk"""
+        file_path_obj = Path(file_path)
+        
+        # Secret files - use wildcard patterns
+        if file_path.endswith(('.env', '.secret', '.key', '.pem')):
+            return f"*{file_path_obj.suffix}"
+        
+        # Config files - pattern by directory
+        if 'config' in file_path.lower() and file_path_obj.suffix in ['.json', '.yaml', '.yml']:
+            return f"**/config/*{file_path_obj.suffix}"
+        
+        # Database files - broad pattern
+        if file_path.endswith(('.db', '.sqlite', '.sqlite3')):
+            return "*.db"
+        
+        # Backup files - pattern match
+        if file_path.endswith(('.bak', '.backup', '.old', '.orig')):
+            return f"*{file_path_obj.suffix}"
+        
+        # Log files - directory pattern
+        if file_path.endswith('.log') or 'log' in file_path.lower():
+            return "*.log"
+        
+        # IDE config - use directory pattern
+        if file_path.startswith(('.vscode/', '.idea/', '.settings/')):
+            return f"{file_path_obj.parts[0]}/"
+        
+        # Temporary files - broad pattern
+        if file_path.endswith(('.tmp', '.temp', '.cache')):
+            return f"*{file_path_obj.suffix}"
+        
+        # Default - use specific file path
+        return file_path
     
     def _add_to_gitupignore(self, file_path: str) -> None:
         """Add file pattern to .gitupignore"""

@@ -22,7 +22,7 @@ This project demonstrates AI-human collaboration in creating developer tools
 that solve real-world friction points in software development.
 """
 
-__version__ = "0.1.0"
+__version__ = "2.1.0-tv955-fusion"
 __author__ = "Herbert J. Bowers (Project Creator), Claude (Anthropic) - Technical Implementation"
 __email__ = "HimalayaProject1@gmail.com"
 __license__ = "MIT"

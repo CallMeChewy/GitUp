@@ -1,0 +1,287 @@
+name: GitUp Build and Release
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'prerelease'
+        type: choice
+        options:
+        - prerelease
+        - release
+
+env:
+  PYTHON_VERSION: '3.11'
+  GITUP_VERSION: '2.1.0-tv955-fusion'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+        
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v --cov=gitup --cov-report=xml
+        
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+
+  build:
+    name: Build Binary
+    needs: test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            binary_name: gitup-linux
+          - os: windows-latest
+            platform: windows
+            binary_name: gitup-windows.exe
+          - os: macos-latest
+            platform: macos
+            binary_name: gitup-macos
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/AppData/Local/pip/Cache
+          ~/Library/Caches/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller>=5.0.0
+        
+    - name: Build binary (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        python build.py --platform ${{ matrix.platform }}
+        
+    - name: Build binary (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |
+        python build.py --platform windows
+        
+    - name: Test binary
+      shell: bash
+      run: |
+        if [ "${{ matrix.platform }}" = "windows" ]; then
+          ./dist/windows/gitup-windows.exe --version
+        elif [ "${{ matrix.platform }}" = "macos" ]; then
+          ./dist/macos/gitup-macos --version
+        else
+          ./dist/linux/gitup-linux --version
+        fi
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: gitup-${{ matrix.platform }}
+        path: |
+          dist/${{ matrix.platform }}/
+          dist/build-info.json
+          dist/sha256.txt
+        retention-days: 30
+
+  security-scan:
+    name: Security Scan
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run GitGuard security scan
+      run: |
+        pip install gitguard
+        gitguard scan --path . --output security-report.json
+        
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-report
+        path: security-report.json
+
+  release:
+    name: Create Release
+    needs: [test, build, security-scan]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        
+        # Copy binaries and rename for clarity
+        cp gitup-linux/linux/gitup-linux release-assets/gitup-linux-x64
+        cp gitup-windows/windows/gitup-windows.exe release-assets/gitup-windows-x64.exe
+        cp gitup-macos/macos/gitup-macos release-assets/gitup-macos-x64
+        
+        # Copy installers
+        cp gitup-linux/linux/install.sh release-assets/install-linux.sh
+        
+        # Copy checksums and build info
+        cp gitup-linux/sha256.txt release-assets/
+        cp gitup-linux/build-info.json release-assets/
+        
+        # Make binaries executable
+        chmod +x release-assets/gitup-*
+        chmod +x release-assets/install-*.sh
+        
+    - name: Generate release notes
+      run: |
+        cat > release-notes.md << 'EOF'
+        ![Project Himalaya Banner](https://raw.githubusercontent.com/herbbowers/gitup/main/Project_Himalaya_Banner.png)
+        
+        # GitUp TV955 Fusion v${{ env.GITUP_VERSION }}
+        
+        ## 🚀 Revolutionary Secure Development Tool
+        
+        This release marks the completion of the GitUp TV955 Fusion moonshot - the world's first secure project creation system with authentic CRT terminal experience.
+        
+        ### ✨ Key Features
+        
+        - **Multi-Level Interface System**: Adaptive UX for Hardcore/Standard/Newbie users
+        - **TV955 Terminal Integration**: Authentic retro computing experience
+        - **Template-Based Project Creation**: 6 professional templates with built-in security
+        - **Real-Time Security Scanning**: 17 types of security risk detection
+        - **Smart .gitignore Management**: Intelligent pattern generation and conflict resolution
+        
+        ### 📦 Downloads
+        
+        - **Linux**: `gitup-linux-x64` - Single binary for Ubuntu 18.04+, CentOS 7+, similar
+        - **Windows**: `gitup-windows-x64.exe` - Single executable for Windows 10+
+        - **macOS**: `gitup-macos-x64` - Single binary for macOS 10.15+
+        
+        ### 🚀 Quick Install (Linux)
+        
+        ```bash
+        # Download and install
+        curl -sSL https://github.com/herbbowers/gitup/releases/latest/download/install-linux.sh | bash
+        
+        # Quick start
+        GITUP_MODE=newbie gitup
+        ```
+        
+        ### 🎮 TV955 Experience
+        
+        For the full CRT terminal experience, download the TV955 terminal emulator:
+        https://bowersworld.com/tv955
+        
+        ### 📚 Documentation
+        
+        - User Guide: https://bowersworld.com/gitup/docs
+        - API Reference: https://bowersworld.com/gitup/api
+        - Examples: https://github.com/herbbowers/gitup/tree/main/examples
+        
+        ### 🔒 Security
+        
+        All binaries are signed and checksummed. Verify downloads using `sha256.txt`.
+        
+        ---
+        
+        **🏔️ Project Himalaya**: This release represents a major milestone in AI-human collaboration, demonstrating the synthesis of human vision and AI implementation capability.
+        
+        **Credits**: Herbert J. Bowers (Project Creator) & Claude (Anthropic) - Technical Implementation
+        EOF
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: GitUp TV955 Fusion ${{ github.ref_name }}
+        body_path: release-notes.md
+        draft: false
+        prerelease: ${{ github.event.inputs.release_type == 'prerelease' || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+        files: |
+          release-assets/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Update latest download links
+      if: ${{ !contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'rc') }}
+      run: |
+        echo "Stable release created: ${{ github.ref_name }}"
+        echo "Update BowersWorld.com download links to point to this release"
+
+  notify:
+    name: Notify Success
+    needs: [test, build, security-scan]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Build Status
+      run: |
+        echo "🎯 Build Status Summary:"
+        echo "  Tests: ${{ needs.test.result }}"
+        echo "  Build: ${{ needs.build.result }}"
+        echo "  Security: ${{ needs.security-scan.result }}"
+        
+        if [ "${{ needs.test.result }}" = "success" ] && [ "${{ needs.build.result }}" = "success" ] && [ "${{ needs.security-scan.result }}" = "success" ]; then
+          echo "✅ All checks passed! Ready for distribution."
+        else
+          echo "❌ Some checks failed. Review logs before release."
+          exit 1
+        fi

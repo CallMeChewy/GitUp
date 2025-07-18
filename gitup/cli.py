@@ -22,17 +22,31 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from . import __version__
-from .core.bootstrap import ProjectBootstrap
-from .core.templates import TemplateManager
-from .core.ignore_manager import GitUpIgnoreManager
-from .core.diff_interface import GitUpDiffInterface
-from .core.metadata_manager import GitUpMetadataManager
-from .core.project_state_detector import ProjectStateDetector
-from .core.gitup_project_manager import GitUpProjectManager
-from .core.security_interface import SecurityReviewInterface, SecurityConfigInterface, SecurityDashboard
-from .core.terminal_interface import launch_security_review_tui
-from .utils.exceptions import GitUpError, SecurityViolationError
+try:
+    from . import __version__
+    from .core.bootstrap import ProjectBootstrap
+    from .core.templates import TemplateManager
+    from .core.ignore_manager import GitUpIgnoreManager
+    from .core.diff_interface import GitUpDiffInterface
+    from .core.metadata_manager import GitUpMetadataManager
+    from .core.project_state_detector import ProjectStateDetector
+    from .core.gitup_project_manager import GitUpProjectManager
+    from .core.security_interface import SecurityReviewInterface, SecurityConfigInterface, SecurityDashboard
+    from .core.terminal_interface import launch_security_review_tui
+    from .utils.exceptions import GitUpError, SecurityViolationError
+except ImportError:
+    # Handle case when running as compiled binary
+    __version__ = "2.1.0-tv955-fusion"
+    from gitup.core.bootstrap import ProjectBootstrap
+    from gitup.core.templates import TemplateManager
+    from gitup.core.ignore_manager import GitUpIgnoreManager
+    from gitup.core.diff_interface import GitUpDiffInterface
+    from gitup.core.metadata_manager import GitUpMetadataManager
+    from gitup.core.project_state_detector import ProjectStateDetector
+    from gitup.core.gitup_project_manager import GitUpProjectManager
+    from gitup.core.security_interface import SecurityReviewInterface, SecurityConfigInterface, SecurityDashboard
+    from gitup.core.terminal_interface import launch_security_review_tui
+    from gitup.utils.exceptions import GitUpError, SecurityViolationError
 
 console = Console()
 
